@@ -21,12 +21,30 @@ export function registerCompressionCodecs(): void {
 		console.warn('kafkajs-lz4 not available, LZ4 compression disabled');
 	}
 
-	// ZSTD — native bindings, may fail
+	// ZSTD — WASM-based, no native bindings required
 	try {
-		const ZSTDCodec = require('@kafkajs/zstd');
-		CompressionCodecs[CompressionTypes.ZSTD] = ZSTDCodec;
+		const { Zstd } = require('@hpcc-js/wasm-zstd');
+		let zstdInstance: Awaited<ReturnType<typeof Zstd.load>> | null = null;
+
+		const getZstd = async () => {
+			if (!zstdInstance) {
+				zstdInstance = await Zstd.load();
+			}
+			return zstdInstance;
+		};
+
+		CompressionCodecs[CompressionTypes.ZSTD] = () => ({
+			async compress(encoder: { buffer: Buffer }) {
+				const zstd = await getZstd();
+				return Buffer.from(zstd.compress(encoder.buffer));
+			},
+			async decompress(buffer: Buffer) {
+				const zstd = await getZstd();
+				return Buffer.from(zstd.decompress(buffer));
+			},
+		});
 	} catch {
-		console.warn('@kafkajs/zstd not available, ZSTD compression disabled');
+		console.warn('@hpcc-js/wasm-zstd not available, ZSTD compression disabled');
 	}
 
 	codecsRegistered = true;
