@@ -1,0 +1,58 @@
+{
+	"name": "n8n-nodes-kafka-extended",
+	"version": "0.1.0",
+	"description": "n8n community node for Kafka with Snappy, LZ4, and ZSTD compression support",
+	"license": "MIT",
+	"homepage": "",
+	"keywords": [
+		"n8n-community-node-package"
+	],
+	"author": {
+		"name": "Kafka Extended Contributors",
+		"email": "dev@example.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/<...>/n8n-nodes-kafka-extended.git"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": false,
+		"credentials": [
+			"dist/credentials/KafkaExtended.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/KafkaExtended/KafkaExtendedTrigger.node.js",
+			"dist/nodes/KafkaExtended/KafkaExtended.node.js"
+		]
+	},
+	"dependencies": {
+		"@kafkajs/zstd": "^0.1.0",
+		"kafkajs": "^2.2.4",
+		"kafkajs-lz4": "^1.0.0",
+		"kafkajs-snappy": "^1.1.0"
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "*",
+		"@types/node": "^25.3.3",
+		"eslint": "9.32.0",
+		"prettier": "3.6.2",
+		"release-it": "^19.0.4",
+		"typescript": "5.9.2"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}
