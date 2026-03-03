@@ -8,7 +8,7 @@ import type {
 	INodeCredentialTestResult,
 	ICredentialsDecrypted,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { createKafkaClient, parseBrokers } from './shared/kafkaConfig';
 import { COMPRESSION_OPTIONS } from './shared/constants';
 import { compressionProperty } from './shared/descriptions';
@@ -212,7 +212,8 @@ export class KafkaExtended implements INodeType {
 						try {
 							parsedMessage = JSON.parse(message);
 						} catch {
-							throw new Error(
+							throw new NodeOperationError(
+								this.getNode(),
 								'Message must be valid JSON when using Schema Registry for producing',
 							);
 						}
