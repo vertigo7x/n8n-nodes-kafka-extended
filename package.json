@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-kafka-extended",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"description": "n8n community node for Kafka with Snappy, LZ4, and ZSTD compression support",
 	"license": "MIT",
 	"homepage": "",
@@ -40,6 +40,7 @@
 	},
 	"dependencies": {
 		"@hpcc-js/wasm-zstd": "^1.12.0",
+		"@kafkajs/confluent-schema-registry": "^3.9.0",
 		"kafkajs": "^2.2.4",
 		"kafkajs-lz4": "^1.0.0",
 		"kafkajs-snappy": "^1.1.0"

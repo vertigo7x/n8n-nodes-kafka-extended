@@ -12,6 +12,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 import { createKafkaClient, parseBrokers } from './shared/kafkaConfig';
 import { COMPRESSION_OPTIONS } from './shared/constants';
 import { compressionProperty } from './shared/descriptions';
+import { isSchemaRegistryEnabled, getSchemaRegistry, encodeMessage } from './shared/schemaRegistry';
 
 function buildHeaders(headersData?: {
 	header?: Array<{ key: string; value: string }>;
@@ -33,7 +34,7 @@ export class KafkaExtended implements INodeType {
 		icon: { light: 'file:../../icons/kafka.svg', dark: 'file:../../icons/kafka.dark.svg' },
 		group: ['transform'],
 		version: 1,
-		description: 'Send messages to Kafka with Snappy/LZ4/ZSTD compression support',
+		description: 'Send messages to Kafka with compression and Schema Registry support',
 		defaults: {
 			name: 'Kafka Extended',
 		},
@@ -130,6 +131,14 @@ export class KafkaExtended implements INodeType {
 						default: 30000,
 						description: 'Producer send timeout in milliseconds',
 					},
+					{
+						displayName: 'Use Schema Registry for Producing',
+						name: 'useSchemaRegistryForProducing',
+						type: 'boolean',
+						default: false,
+						description:
+							'Whether to encode the message value using Schema Registry (requires Schema Registry configured in credentials)',
+					},
 				],
 			},
 		],
@@ -170,6 +179,10 @@ export class KafkaExtended implements INodeType {
 		const brokers = parseBrokers(credentials.brokers as string);
 		const clientId = credentials.clientId as string;
 
+		// Schema Registry setup
+		const useRegistry = isSchemaRegistryEnabled(credentials);
+		const registry = useRegistry ? getSchemaRegistry(credentials) : null;
+
 		const kafka = createKafkaClient(brokers, clientId);
 		const producer = kafka.producer();
 		await producer.connect();
@@ -189,6 +202,23 @@ export class KafkaExtended implements INodeType {
 						options.headers as { header?: Array<{ key: string; value: string }> } | undefined,
 					);
 
+					const useRegistryForProducing =
+						useRegistry && ((options.useSchemaRegistryForProducing as boolean) || false);
+
+					let messageValue: string | Buffer = message;
+					if (useRegistryForProducing && registry) {
+						// Parse message as JSON for schema encoding
+						let parsedMessage: unknown;
+						try {
+							parsedMessage = JSON.parse(message);
+						} catch {
+							throw new Error(
+								'Message must be valid JSON when using Schema Registry for producing',
+							);
+						}
+						messageValue = await encodeMessage(registry, topic, parsedMessage);
+					}
+
 					const result = await producer.send({
 						topic,
 						compression,
@@ -197,7 +227,7 @@ export class KafkaExtended implements INodeType {
 						messages: [
 							{
 								key: key || undefined,
-								value: message,
+								value: messageValue,
 								headers,
 							},
 						],
@@ -210,6 +240,7 @@ export class KafkaExtended implements INodeType {
 							offset: result[0].baseOffset,
 							timestamp: result[0].timestamp,
 							compression: COMPRESSION_OPTIONS.find((c) => c.value === compression)?.name ?? 'None',
+							schemaRegistry: useRegistryForProducing,
 						},
 						pairedItem: { item: i },
 					});

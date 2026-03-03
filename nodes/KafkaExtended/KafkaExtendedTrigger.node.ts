@@ -15,6 +15,8 @@ import {
 	DEFAULT_FETCH_MAX_BYTES,
 	DEFAULT_MAX_IN_FLIGHT_REQUESTS,
 } from './shared/constants';
+import { isSchemaRegistryEnabled, getSchemaRegistry, decodeMessage } from './shared/schemaRegistry';
+import type { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 import type { IHeaders } from 'kafkajs';
 
 function formatHeaders(headers?: IHeaders): IDataObject {
@@ -30,6 +32,62 @@ function formatHeaders(headers?: IHeaders): IDataObject {
 	return result;
 }
 
+async function resolveValue(
+	messageValue: Buffer | null,
+	jsonParseMessage: boolean,
+	useRegistry: boolean,
+	registry: SchemaRegistry | null,
+): Promise<string | IDataObject | null> {
+	if (!messageValue) return '';
+
+	// Schema Registry decoding takes priority
+	if (useRegistry && registry) {
+		const decoded = await decodeMessage(registry, messageValue);
+		if (decoded !== null && typeof decoded === 'object') {
+			return decoded;
+		}
+		// If decode returned a string, fall through to JSON parse logic
+		if (typeof decoded === 'string') {
+			if (jsonParseMessage) {
+				try {
+					return JSON.parse(decoded) as IDataObject;
+				} catch {
+					return decoded;
+				}
+			}
+			return decoded;
+		}
+	}
+
+	const rawValue = messageValue.toString();
+	if (jsonParseMessage) {
+		try {
+			return JSON.parse(rawValue) as IDataObject;
+		} catch {
+			return rawValue;
+		}
+	}
+	return rawValue;
+}
+
+async function resolveKey(
+	messageKey: Buffer | null,
+	useRegistry: boolean,
+	registry: SchemaRegistry | null,
+): Promise<string | IDataObject | null> {
+	if (!messageKey) return null;
+
+	if (useRegistry && registry) {
+		const decoded = await decodeMessage(registry, messageKey);
+		if (decoded !== null && typeof decoded === 'object') {
+			return decoded;
+		}
+		if (typeof decoded === 'string') return decoded;
+	}
+
+	return messageKey.toString();
+}
+
 export class KafkaExtendedTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Kafka Extended Trigger',
@@ -37,7 +95,7 @@ export class KafkaExtendedTrigger implements INodeType {
 		icon: { light: 'file:../../icons/kafka.svg', dark: 'file:../../icons/kafka.dark.svg' },
 		group: ['trigger'],
 		version: 1,
-		description: 'Consume messages from Kafka with Snappy/LZ4/ZSTD compression support',
+		description: 'Consume messages from Kafka with compression and Schema Registry support',
 		defaults: {
 			name: 'Kafka Extended Trigger',
 		},
@@ -169,6 +227,10 @@ export class KafkaExtendedTrigger implements INodeType {
 		const jsonParseMessage = this.getNodeParameter('jsonParseMessage') as boolean;
 		const options = this.getNodeParameter('options') as IDataObject;
 
+		// Schema Registry setup
+		const useRegistry = isSchemaRegistryEnabled(credentials);
+		const registry = useRegistry ? getSchemaRegistry(credentials) : null;
+
 		const kafka = createKafkaClient(brokers, clientId);
 		const consumer = kafka.consumer({
 			groupId,
@@ -198,19 +260,14 @@ export class KafkaExtendedTrigger implements INodeType {
 					for (const message of batch.messages) {
 						if (!isRunning() || isStale()) break;
 
-						let value: string | IDataObject = '';
-						if (message.value) {
-							const rawValue = message.value.toString();
-							if (jsonParseMessage) {
-								try {
-									value = JSON.parse(rawValue) as IDataObject;
-								} catch {
-									value = rawValue;
-								}
-							} else {
-								value = rawValue;
-							}
-						}
+						const value = await resolveValue(
+							message.value,
+							jsonParseMessage,
+							useRegistry,
+							registry,
+						);
+
+						const key = await resolveKey(message.key, useRegistry, registry);
 
 						const item: INodeExecutionData = {
 							json: {
@@ -218,7 +275,7 @@ export class KafkaExtendedTrigger implements INodeType {
 								partition: batch.partition,
 								offset: message.offset,
 								timestamp: message.timestamp,
-								key: message.key?.toString() ?? null,
+								key,
 								value,
 								...(returnHeaders ? { headers: formatHeaders(message.headers) } : {}),
 							},

@@ -29,5 +29,53 @@ export class KafkaExtended implements ICredentialType {
 			default: 'n8n',
 			description: 'Client identifier for the Kafka connection',
 		},
+		{
+			displayName: 'Use Schema Registry',
+			name: 'useSchemaRegistry',
+			type: 'boolean',
+			default: false,
+			description:
+				'Whether to use Confluent Schema Registry for Avro/JSON Schema/Protobuf encoding',
+		},
+		{
+			displayName: 'Schema Registry URL',
+			name: 'schemaRegistryUrl',
+			type: 'string',
+			default: '',
+			placeholder: 'http://localhost:8081',
+			description: 'URL of the Confluent Schema Registry',
+			displayOptions: {
+				show: {
+					useSchemaRegistry: [true],
+				},
+			},
+		},
+		{
+			displayName: 'Schema Registry Username',
+			name: 'schemaRegistryUsername',
+			type: 'string',
+			default: '',
+			description: 'Username for Schema Registry basic auth (leave empty if no auth)',
+			displayOptions: {
+				show: {
+					useSchemaRegistry: [true],
+				},
+			},
+		},
+		{
+			displayName: 'Schema Registry Password',
+			name: 'schemaRegistryPassword',
+			type: 'string',
+			typeOptions: {
+				password: true,
+			},
+			default: '',
+			description: 'Password for Schema Registry basic auth (leave empty if no auth)',
+			displayOptions: {
+				show: {
+					useSchemaRegistry: [true],
+				},
+			},
+		},
 	];
 }
