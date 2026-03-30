@@ -12,7 +12,12 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { createKafkaClient, parseBrokers } from './shared/kafkaConfig';
 import { COMPRESSION_OPTIONS } from './shared/constants';
 import { compressionProperty } from './shared/descriptions';
-import { isSchemaRegistryEnabled, getSchemaRegistry, encodeMessage } from './shared/schemaRegistry';
+import {
+	isSchemaRegistryEnabled,
+	getSchemaRegistry,
+	encodeMessage,
+	type SchemaSubjectNameStrategy,
+} from './shared/schemaRegistry';
 
 function buildHeaders(headersData?: {
 	header?: Array<{ key: string; value: string }>;
@@ -125,6 +130,50 @@ export class KafkaExtended implements INodeType {
 						description: 'Key-value message headers',
 					},
 					{
+						displayName: 'Schema Record Name',
+						name: 'schemaRecordName',
+						type: 'string',
+						default: '',
+						placeholder: 'com.example.CustomerCreated',
+						displayOptions: {
+							show: {
+								useSchemaRegistryForProducing: [true],
+								schemaSubjectStrategy: ['record', 'topicrecord'],
+							},
+						},
+						description:
+							'Record name used by Record Name Strategy or Topic Record Name Strategy, usually the fully qualified schema name',
+					},
+					{
+						displayName: 'Schema Subject Strategy',
+						name: 'schemaSubjectStrategy',
+						type: 'options',
+						default: 'topic',
+						displayOptions: {
+							show: {
+								useSchemaRegistryForProducing: [true],
+							},
+						},
+						options: [
+							{
+								name: 'Topic Name Strategy',
+								value: 'topic',
+								description: 'Uses subjects like &lt;topic&gt;-value or &lt;topic&gt;-key',
+							},
+							{
+								name: 'Record Name Strategy',
+								value: 'record',
+								description: 'Uses the record name as the subject',
+							},
+							{
+								name: 'Topic Record Name Strategy',
+								value: 'topicrecord',
+								description: 'Uses subjects like &lt;topic&gt;-&lt;recordName&gt;',
+							},
+						],
+						description: 'Strategy used to resolve the Schema Registry subject for message values',
+					},
+					{
 						displayName: 'Timeout (Ms)',
 						name: 'timeout',
 						type: 'number',
@@ -204,6 +253,9 @@ export class KafkaExtended implements INodeType {
 
 					const useRegistryForProducing =
 						useRegistry && ((options.useSchemaRegistryForProducing as boolean) || false);
+					const schemaSubjectStrategy =
+						(options.schemaSubjectStrategy as SchemaSubjectNameStrategy | undefined) ?? 'topic';
+					const schemaRecordName = (options.schemaRecordName as string | undefined)?.trim();
 
 					let messageValue: string | Buffer = message;
 					if (useRegistryForProducing && registry) {
@@ -217,7 +269,13 @@ export class KafkaExtended implements INodeType {
 								'Message must be valid JSON when using Schema Registry for producing',
 							);
 						}
-						messageValue = await encodeMessage(registry, topic, parsedMessage);
+						messageValue = await encodeMessage(
+							registry,
+							topic,
+							parsedMessage,
+							schemaSubjectStrategy,
+							schemaRecordName,
+						);
 					}
 
 					const result = await producer.send({
@@ -242,6 +300,7 @@ export class KafkaExtended implements INodeType {
 							timestamp: result[0].timestamp,
 							compression: COMPRESSION_OPTIONS.find((c) => c.value === compression)?.name ?? 'None',
 							schemaRegistry: useRegistryForProducing,
+							schemaSubjectStrategy: useRegistryForProducing ? schemaSubjectStrategy : undefined,
 						},
 						pairedItem: { item: i },
 					});

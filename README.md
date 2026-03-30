@@ -63,7 +63,7 @@ Sends messages to a Kafka topic with selectable compression codec.
 | Key         | string  | No       | Message key for partitioning                      |
 | Compression | options | No       | None / GZIP / Snappy / LZ4 / ZSTD (default: None) |
 
-**Additional options:** Acks (None / Leader / All ISR), Headers (key-value pairs), Timeout.
+**Additional options:** Acks (None / Leader / All ISR), Headers (key-value pairs), Timeout, Schema Registry for producing, Schema Subject Strategy (`topic`, `record`, `topicrecord`) and Schema Record Name when required.
 
 **Output data shape:**
 
@@ -73,9 +73,19 @@ Sends messages to a Kafka topic with selectable compression codec.
 	"partition": 0,
 	"offset": "123",
 	"timestamp": "1672531200000",
-	"compression": "Snappy"
+	"compression": "Snappy",
+	"schemaRegistry": true,
+	"schemaSubjectStrategy": "topicrecord"
 }
 ```
+
+When producing with Schema Registry enabled, the node supports these subject naming strategies:
+
+- `topic`: resolves subjects like `<topic>-value`
+- `record`: resolves subjects from the configured record name
+- `topicrecord`: resolves subjects like `<topic>-<recordName>`
+
+For `record` and `topicrecord`, set **Schema Record Name** to the schema record name registered in Schema Registry, typically the fully qualified name.
 
 ## Credentials
 
@@ -123,6 +133,8 @@ Codec registration is handled automatically at runtime. If LZ4 or ZSTD native bi
 2. Configure the Kafka Extended credential.
 3. Set the **Topic** and **Message** (supports n8n expressions like `{{ $json.data }}`).
 4. Optionally set a **Key** for partition routing and select a **Compression** codec.
+5. If you enable **Use Schema Registry for Producing**, choose the **Schema Subject Strategy** that matches your Kafka serializer setup.
+6. For `record` or `topicrecord`, set **Schema Record Name** to the subject's record name in Schema Registry.
 
 ### Using as an AI tool
 

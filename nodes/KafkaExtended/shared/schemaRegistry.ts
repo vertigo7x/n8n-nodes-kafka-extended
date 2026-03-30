@@ -4,6 +4,8 @@ import type { IDataObject } from 'n8n-workflow';
 let registryInstance: SchemaRegistry | null = null;
 let lastRegistryUrl = '';
 
+export type SchemaSubjectNameStrategy = 'topic' | 'record' | 'topicrecord';
+
 export interface SchemaRegistryCredentials {
 	useSchemaRegistry?: boolean;
 	schemaRegistryUrl?: string;
@@ -63,15 +65,41 @@ export async function decodeMessage(
 
 /**
  * Encode a value using Schema Registry.
- * Looks up the latest schema for the given subject (topic-value or topic-key).
+ * Looks up the latest schema for the given subject according to the configured
+ * subject naming strategy.
  */
+export function getSchemaSubject(
+	topic: string,
+	strategy: SchemaSubjectNameStrategy,
+	recordName?: string,
+	isKey = false,
+): string {
+	if (strategy === 'topic') {
+		return `${topic}-${isKey ? 'key' : 'value'}`;
+	}
+
+	if (!recordName?.trim()) {
+		throw new Error('Record name is required when using Record or TopicRecord subject strategy');
+	}
+
+	const normalizedRecordName = recordName.trim();
+
+	if (strategy === 'record') {
+		return normalizedRecordName;
+	}
+
+	return `${topic}-${normalizedRecordName}`;
+}
+
 export async function encodeMessage(
 	registry: SchemaRegistry,
 	topic: string,
 	value: unknown,
+	strategy: SchemaSubjectNameStrategy = 'topic',
+	recordName?: string,
 	isKey = false,
 ): Promise<Buffer> {
-	const subject = `${topic}-${isKey ? 'key' : 'value'}`;
+	const subject = getSchemaSubject(topic, strategy, recordName, isKey);
 	const schemaId = await registry.getLatestSchemaId(subject);
 	return registry.encode(schemaId, value);
 }
