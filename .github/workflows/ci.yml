@@ -57,7 +57,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Authentication is via OIDC (trusted publisher configured on npmjs.com);
-      # no NPM_TOKEN is used. Provenance is generated automatically for OIDC publishes.
-      - name: Publish to npm
-        run: npm publish --access public
+      # Authentication is via OIDC (trusted publisher configured on npmjs.com).
+      # setup-node writes an .npmrc with a token line; remove it so the CLI falls
+      # back to OIDC instead of trying (empty) token auth. Provenance is automatic.
+      - name: Publish to npm (OIDC trusted publishing)
+        run: |
+          rm -f "$NPM_CONFIG_USERCONFIG" ~/.npmrc || true
+          npm publish --access public
