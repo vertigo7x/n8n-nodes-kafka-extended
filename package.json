@@ -3,7 +3,7 @@
 	"version": "0.3.0",
 	"description": "n8n community node for Kafka with Snappy, LZ4, and ZSTD compression support",
 	"license": "MIT",
-	"homepage": "",
+	"homepage": "https://github.com/vertigo7x/n8n-nodes-kafka-extended",
 	"keywords": [
 		"n8n-community-node-package"
 	],
@@ -17,12 +17,13 @@
 	},
 	"scripts": {
 		"build": "n8n-node build",
+		"postbuild": "node scripts/copy-codex.mjs",
 		"build:watch": "tsc --watch",
 		"dev": "n8n-node dev",
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",
-		"prepublishOnly": "npm run build"
+		"prepublishOnly": "n8n-node prerelease"
 	},
 	"files": [
 		"dist"
@@ -47,7 +48,7 @@
 	},
 	"devDependencies": {
 		"@n8n/node-cli": "*",
-		"@types/node": "^25.3.3",
+		"@types/node": "^22",
 		"eslint": "9.32.0",
 		"prettier": "3.6.2",
 		"release-it": "^19.0.4",

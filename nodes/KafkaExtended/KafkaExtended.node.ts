@@ -39,6 +39,7 @@ export class KafkaExtended implements INodeType {
 		icon: { light: 'file:../../icons/kafka.svg', dark: 'file:../../icons/kafka.dark.svg' },
 		group: ['transform'],
 		version: 1,
+		subtitle: '=Topic: {{$parameter["topic"]}}',
 		description: 'Send messages to Kafka with compression and Schema Registry support',
 		defaults: {
 			name: 'Kafka Extended',
@@ -50,6 +51,7 @@ export class KafkaExtended implements INodeType {
 			{
 				name: 'kafkaExtendedApi',
 				required: true,
+				testedBy: 'kafkaExtendedConnectionTest',
 			},
 		],
 		properties: [
@@ -312,7 +314,7 @@ export class KafkaExtended implements INodeType {
 						});
 						continue;
 					}
-					throw error;
+					throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: i });
 				}
 			}
 		} finally {

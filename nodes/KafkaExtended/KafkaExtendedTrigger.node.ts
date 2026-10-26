@@ -95,17 +95,18 @@ export class KafkaExtendedTrigger implements INodeType {
 		icon: { light: 'file:../../icons/kafka.svg', dark: 'file:../../icons/kafka.dark.svg' },
 		group: ['trigger'],
 		version: 1,
+		subtitle: '=Topic: {{$parameter["topic"]}}',
 		description: 'Consume messages from Kafka with compression and Schema Registry support',
 		defaults: {
 			name: 'Kafka Extended Trigger',
 		},
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
-		usableAsTool: true,
 		credentials: [
 			{
 				name: 'kafkaExtendedApi',
 				required: true,
+				testedBy: 'kafkaExtendedConnectionTest',
 			},
 		],
 		properties: [
